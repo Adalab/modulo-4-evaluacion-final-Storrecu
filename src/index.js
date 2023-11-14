@@ -348,3 +348,42 @@ server.post('/register', async (req, res) => {
     });
   }
 });
+
+server.post('/login', async (req, res) => {
+  const body = req.body;
+  try {
+    const sql = 'SELECT * FROM users WHERE email = ?';
+    const conn = await getConnectionTwo();
+    const [results] = await conn.query(sql, [body.email]);
+    conn.end();
+
+    const user = results[0];
+    const passwordMatch =
+      user === null
+        ? false
+        : await bcrypt.compare(body.password, user['password']);
+
+    if (!user || !passwordMatch) {
+      return res.status(401).json({
+        error: 'Usuario o contraseña incorrectos',
+      });
+    }
+
+    const userForToken = {
+      email: user.email,
+      password: user['password'],
+    };
+
+    const token = generateToken(userForToken);
+
+    res.json({
+      token,
+      email: user.email,
+    });
+  } catch (error) {
+    res.json({
+      success: false,
+      message: error,
+    });
+  }
+});
