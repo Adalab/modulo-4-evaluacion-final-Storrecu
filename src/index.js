@@ -119,6 +119,14 @@ server.post('/heroes', async (req, res) => {
       });
     }
 
+    // validate data type of year
+    if (newHero.year !== '' && isNaN(newHero.year)) {
+      return res.json({
+        success: false,
+        message: 'El campo "year" debe ser un número',
+      });
+    }
+
     const sql =
       'INSERT INTO heroes (name, super_power, serie, `year`, image) VALUES (?, ?, ?, ?, ?)';
     const conn = await getConnection();
