@@ -1,3 +1,4 @@
+//imports
 const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2/promise');
@@ -11,22 +12,18 @@ server.use(cors());
 server.use(express.json());
 
 // init express aplication
-const serverPort = 2105;
+const serverPort = 2115;
 server.listen(serverPort, () => {
   console.log(`Server listening at http://localhost:${serverPort}`);
 });
 
-// conexion con la BD
+// conexion with DB
 async function getConnection() {
   const connection = await mysql.createConnection({
     host: process.env.DBHOST,
     user: process.env.DBUSER,
     password: process.env.PASS,
     database: process.env.DBNAME,
-    // host: 'host_de_tu_bd',
-    // user: 'user_de_tu_bd',
-    // password: 'tu_contras',
-    // database: 'tu_bd',
   });
   await connection.connect();
   console.log(
@@ -35,20 +32,19 @@ async function getConnection() {
 
   return connection;
 }
-// creamos  nuestros endpoints
-//get, post, put, delete
 
-//Obtenemos todas las recetas
-server.get('/recetas', async (req, res) => {
+//endpoints
+//obtain all heroes: GET
+server.get('/heroes', async (req, res) => {
   try {
-    const sql = 'SELECT * FROM recetas';
+    const sql = 'SELECT * FROM heroes';
     const conn = await getConnection();
     const [results] = await conn.query(sql);
-    const items = results.length;
+    const heroes = results.length;
 
     res.json({
       success: true,
-      info: { count: items },
+      info: { count: heroes },
       results: results,
     });
 
@@ -61,19 +57,38 @@ server.get('/recetas', async (req, res) => {
   }
 });
 
-//Obtenemos receta por su ID
-server.get('/recetas/:id', async (req, res) => {
+//obtain hero by ID: GET
+server.get('/heroes/:id', async (req, res) => {
   try {
     const id = req.params.id;
-    const sql = 'SELECT * FROM recetas WHERE id = ?';
+
+    //validate info in url params is number
+    if (isNaN(id)) {
+      return res.json({
+        success: false,
+        message: 'El ID debe ser un número válido',
+      });
+    }
+    const sql = 'SELECT * FROM heroes WHERE id = ?';
     const conn = await getConnection();
     const [results] = await conn.query(sql, id);
-    const recetas = results[0];
+
+    //validate there's a hero asociated with the ID searched
+    if (results.length === 0) {
+      return res.json({
+        success: false,
+        message: 'No se encontró ningún héroe con ese ID',
+      });
+    }
+
+    const hero = results[0];
 
     res.json({
-      nombre: recetas.nombre,
-      ingredientes: recetas.ingredientes,
-      instrucciones: recetas.intrucciones,
+      name: hero.name,
+      super_power: hero.super_power,
+      serie: hero.serie,
+      year: hero.year,
+      image: hero.image,
     });
 
     conn.end();
@@ -85,24 +100,41 @@ server.get('/recetas/:id', async (req, res) => {
   }
 });
 
-//Añadir nueva receta
-server.post('/recetas', async (req, res) => {
+//add new hero: POST
+server.post('/heroes', async (req, res) => {
   try {
-    const nuevaReceta = req.body;
+    const newHero = req.body;
+
+    //validate required fields before inserto intro DB
+    if (
+      !newHero.name ||
+      !newHero.super_power ||
+      !newHero.serie ||
+      !newHero.year
+    ) {
+      return res.json({
+        success: false,
+        message:
+          'Los datos "name", "super_power", "serie" y "year" son obligatorios',
+      });
+    }
+
     const sql =
-      'INSERT INTO recetas (nombre, ingredientes, instrucciones) VALUES (?, ?, ?)';
+      'INSERT INTO heroes (name, super_power, serie, `year`, image) VALUES (?, ?, ?, ?, ?)';
     const conn = await getConnection();
     const [results] = await conn.query(sql, [
-      nuevaReceta.nombre,
-      nuevaReceta.ingredientes,
-      nuevaReceta.instrucciones,
+      newHero.name,
+      newHero.super_power,
+      newHero.serie,
+      newHero.year,
+      newHero.image,
     ]);
 
-    const nuevaRecetaID = results.insertId;
+    const newHeroId = results.insertId;
 
     res.json({
       success: true,
-      id: nuevaRecetaID,
+      id: newHeroId,
     });
 
     conn.end();
