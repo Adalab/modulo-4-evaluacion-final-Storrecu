@@ -295,8 +295,31 @@ async function getConnectionTwo() {
 }
 
 server.post('/register', async (req, res) => {
+  const newUser = req.body;
+  //verificate required fields before add new user
+  const requiredFields = ['email', 'name', 'password'];
+
+  for (const field of requiredFields) {
+    if (!newUser[field]) {
+      return res.json({
+        success: false,
+        message: `El campo "${field}" es obligatorio.`,
+      });
+    }
+  }
+
+  //verificate email
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!emailRegex.test(newUser.email)) {
+    return res.json({
+      success: false,
+      message:
+        'Por favor, introduce una dirección de correo electrónico válida.',
+    });
+  }
+
   try {
-    const newUser = req.body;
     const passwordHash = await bcrypt.hash(newUser.password, 10);
     const sql = 'INSERT INTO users (email, name, `password`) VALUES (?, ?, ?)';
     const conn = await getConnectionTwo();
