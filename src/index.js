@@ -6,18 +6,18 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
-// create and config server
+//create and config server
 const server = express();
 server.use(cors());
 server.use(express.json());
 
-// init express aplication
+//init express aplication
 const serverPort = 2115;
 server.listen(serverPort, () => {
   console.log(`Server listening at http://localhost:${serverPort}`);
 });
 
-// conexion with DB
+//conexion with DB
 async function getConnection() {
   const connection = await mysql.createConnection({
     host: process.env.DBHOST,
@@ -33,7 +33,7 @@ async function getConnection() {
   return connection;
 }
 
-//endpoints
+//CRUD: endpoints
 //obtain all heroes: GET
 server.get('/heroes', async (req, res) => {
   try {
@@ -127,9 +127,22 @@ server.post('/heroes', async (req, res) => {
       });
     }
 
+    //validate if a hero with the same name already exists
+    const checkDuplicateSql = 'SELECT * FROM heroes WHERE name = ?';
+    const conn = await getConnection();
+    const [duplicateResults] = await conn.query(checkDuplicateSql, [
+      newHero.name,
+    ]);
+
+    if (duplicateResults.length > 0) {
+      return res.json({
+        success: false,
+        message: 'Ya existe un héroe con ese nombre',
+      });
+    }
+
     const sql =
       'INSERT INTO heroes (name, super_power, serie, `year`, image) VALUES (?, ?, ?, ?, ?)';
-    const conn = await getConnection();
     const [results] = await conn.query(sql, [
       newHero.name,
       newHero.super_power,
@@ -154,24 +167,55 @@ server.post('/heroes', async (req, res) => {
   }
 });
 
-//Modificar una receta existente
-server.put('/recetas/:id', async (req, res) => {
+//modify an existing hero: PUT
+server.put('/heroes/:id', async (req, res) => {
   try {
     const id = req.params.id;
-    const { nombre, ingredientes, instrucciones } = req.body;
-    const sql =
-      'UPDATE recetas SET nombre = ?, ingredientes = ?, instrucciones = ? WHERE id= ?';
+    const { name, super_power, serie, year, image } = req.body;
+
+    //validate required fields before modify DB info
+    if (!name || !super_power || !serie || !year) {
+      return res.json({
+        success: false,
+        message:
+          'Los datos "name", "super_power", "serie" y "year" son obligatorios',
+      });
+    }
+
+    //validate data type of year
+    if (year !== '' && isNaN(year)) {
+      return res.json({
+        success: false,
+        message: 'El campo "year" debe ser un número',
+      });
+    }
+
+    //validate if the hero to be updated exists
+    const checkExistenceSql = 'SELECT * FROM heroes WHERE id = ?';
     const conn = await getConnection();
+    const [existenceResults] = await conn.query(checkExistenceSql, [id]);
+
+    if (existenceResults.length === 0) {
+      return res.json({
+        success: false,
+        message: 'No se encontró ningún héroe con ese ID',
+      });
+    }
+
+    const sql =
+      'UPDATE heroes SET name = ?, super_power = ?, serie = ?, `year`= ?, image= ? WHERE id= ?';
     const [results] = await conn.query(sql, [
-      nombre,
-      ingredientes,
-      instrucciones,
+      name,
+      super_power,
+      serie,
+      year,
+      image,
       id,
     ]);
 
     res.json({
       success: true,
-      message: `Se ha modificado la receta con el ID ${id}`,
+      message: `Se ha modificado al héroe con el ID ${id}`,
     });
 
     conn.end();
