@@ -26,6 +26,23 @@ const verifyToken = (token) => {
   }
 };
 
+const authenticateToken = (req, res, next) => {
+  const token = req.headers['authorization'];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Token no proporcionado' });
+  }
+
+  const decoded = verifyToken(token);
+
+  if (!decoded) {
+    return res.status(401).json({ error: 'Token inválido' });
+  }
+
+  req.user = decoded;
+  next();
+};
+
 //init express aplication
 const serverPort = 2115;
 server.listen(serverPort, () => {
@@ -294,7 +311,7 @@ async function getConnectionTwo() {
   return connection;
 }
 
-server.post('/register', async (req, res) => {
+server.post('/register', authenticateToken, async (req, res) => {
   const newUser = req.body;
   //verificate required fields before add new user
   const requiredFields = ['email', 'name', 'password'];
@@ -349,7 +366,7 @@ server.post('/register', async (req, res) => {
   }
 });
 
-server.post('/login', async (req, res) => {
+server.post('/login', authenticateToken, async (req, res) => {
   const body = req.body;
   try {
     const sql = 'SELECT * FROM users WHERE email = ?';
