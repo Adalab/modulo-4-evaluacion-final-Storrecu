@@ -11,13 +11,28 @@ const server = express();
 server.use(cors());
 server.use(express.json());
 
+//token
+const generateToken = (payload) => {
+  const token = jwt.sign(payload, 'secret', { expiresIn: '24h' });
+  return token;
+};
+
+const verifyToken = (token) => {
+  try {
+    const decoded = jwt.verify(token, 'secret');
+    return decoded;
+  } catch (err) {
+    return null;
+  }
+};
+
 //init express aplication
 const serverPort = 2115;
 server.listen(serverPort, () => {
   console.log(`Server listening at http://localhost:${serverPort}`);
 });
 
-//conexion with DB
+//conexion with DB series_db
 async function getConnection() {
   const connection = await mysql.createConnection({
     host: process.env.DBHOST,
@@ -57,7 +72,7 @@ server.get('/heroes', async (req, res) => {
   }
 });
 
-//obtain hero by ID: GET
+//obtain hero by ID: GET by ID
 server.get('/heroes/:id', async (req, res) => {
   try {
     const id = req.params.id;
@@ -253,6 +268,56 @@ server.delete('/heroes/:id', async (req, res) => {
     });
 
     conn.end();
+  } catch (error) {
+    res.json({
+      success: false,
+      message: error,
+    });
+  }
+});
+
+//BONUS: register/login
+
+//conexion with DB users_db
+async function getConnectionTwo() {
+  const connection = await mysql.createConnection({
+    host: process.env.DBHOST,
+    user: process.env.DBUSER,
+    password: process.env.PASS,
+    database: process.env.DBNAMETWO,
+  });
+  await connection.connect();
+  console.log(
+    `Conexión establecida con la base de datos (identificador=${connection.threadId})`
+  );
+
+  return connection;
+}
+
+server.post('/register', async (req, res) => {
+  try {
+    const newUser = req.body;
+    const passwordHash = await bcrypt.hash(newUser.password, 10);
+    const sql = 'INSERT INTO users (email, name, `password`) VALUES (?, ?, ?)';
+    const conn = await getConnectionTwo();
+
+    const [results] = await conn.query(sql, [
+      newUser.email,
+      newUser.name,
+      passwordHash,
+    ]);
+
+    const newUserId = results.insertId;
+
+    const token = generateToken({ id: newUserId, email: newUser.email });
+
+    conn.end();
+
+    res.json({
+      success: true,
+      token: token,
+      id: newUserId,
+    });
   } catch (error) {
     res.json({
       success: false,
