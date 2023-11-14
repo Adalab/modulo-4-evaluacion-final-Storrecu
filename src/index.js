@@ -227,5 +227,36 @@ server.put('/heroes/:id', async (req, res) => {
   }
 });
 
-//Eliminar una receta
-server.delete('/recetas/:id', async (req, res) => {});
+//eliminate an existing hero: DELETE
+server.delete('/heroes/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    //validate if the hero to be updated exists
+    const checkExistenceSql = 'SELECT * FROM heroes WHERE id = ?';
+    const conn = await getConnection();
+    const [existenceResults] = await conn.query(checkExistenceSql, [id]);
+
+    if (existenceResults.length === 0) {
+      return res.json({
+        success: false,
+        message: 'No se encontró ningún héroe con ese ID',
+      });
+    }
+
+    const sql = 'DELETE FROM heroes WHERE id = ?';
+    const [results] = await conn.query(sql, id);
+
+    res.json({
+      success: true,
+      message: `Se ha eliminado al héroe con el ID ${id}`,
+    });
+
+    conn.end();
+  } catch (error) {
+    res.json({
+      success: false,
+      message: error,
+    });
+  }
+});
