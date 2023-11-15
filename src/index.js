@@ -66,17 +66,17 @@ async function getConnection() {
 }
 
 //CRUD: endpoints
-//obtain all heroes: GET
-server.get('/heroes', async (req, res) => {
+//obtain all animes: GET
+server.get('/animes', async (req, res) => {
   try {
-    const sql = 'SELECT * FROM heroes';
+    const sql = 'SELECT * FROM animes';
     const conn = await getConnection();
     const [results] = await conn.query(sql);
-    const heroes = results.length;
+    const animes = results.length;
 
     res.json({
       success: true,
-      info: { count: heroes },
+      info: { count: animes },
       results: results,
     });
 
@@ -89,8 +89,8 @@ server.get('/heroes', async (req, res) => {
   }
 });
 
-//obtain hero by ID: GET by ID
-server.get('/heroes/:id', async (req, res) => {
+//obtain anime by ID: GET by ID
+server.get('/animes/:id', async (req, res) => {
   try {
     const id = req.params.id;
 
@@ -101,26 +101,25 @@ server.get('/heroes/:id', async (req, res) => {
         message: 'El ID debe ser un número válido',
       });
     }
-    const sql = 'SELECT * FROM heroes WHERE id = ?';
+    const sql = 'SELECT * FROM animes WHERE id = ?';
     const conn = await getConnection();
     const [results] = await conn.query(sql, id);
 
-    //validate there's a hero asociated with the ID searched
+    //validate there's an anime asociated with the ID searched
     if (results.length === 0) {
       return res.json({
         success: false,
-        message: 'No se encontró ningún héroe con ese ID',
+        message: 'No se encontró ningún anime con ese ID',
       });
     }
 
-    const hero = results[0];
+    const anime = results[0];
 
     res.json({
-      name: hero.name,
-      super_power: hero.super_power,
-      serie: hero.serie,
-      year: hero.year,
-      image: hero.image,
+      title: anime.title,
+      genre: anime.genre,
+      release_year: anime.release_year,
+      image: anime.image,
     });
 
     conn.end();
@@ -132,62 +131,55 @@ server.get('/heroes/:id', async (req, res) => {
   }
 });
 
-//add new hero: POST
-server.post('/heroes', async (req, res) => {
+//add new anime: POST
+server.post('/animes', async (req, res) => {
   try {
-    const newHero = req.body;
+    const newAnime = req.body;
 
     //validate required fields before inserto intro DB
-    if (
-      !newHero.name ||
-      !newHero.super_power ||
-      !newHero.serie ||
-      !newHero.year
-    ) {
+    if (!newAnime.title || !newAnime.release_year) {
       return res.json({
         success: false,
-        message:
-          'Los datos "name", "super_power", "serie" y "year" son obligatorios',
+        message: 'Los datos "title" y "release_year" son obligatorios',
       });
     }
 
     // validate data type of year
-    if (newHero.year !== '' && isNaN(newHero.year)) {
+    if (newAnime.release_year !== '' && isNaN(newAnime.release_year)) {
       return res.json({
         success: false,
-        message: 'El campo "year" debe ser un número',
+        message: 'El campo "release_year" debe ser un número',
       });
     }
 
-    //validate if a hero with the same name already exists
-    const checkDuplicateSql = 'SELECT * FROM heroes WHERE name = ?';
+    //validate if a anime with the same name already exists
+    const checkDuplicateSql = 'SELECT * FROM animes WHERE title = ?';
     const conn = await getConnection();
     const [duplicateResults] = await conn.query(checkDuplicateSql, [
-      newHero.name,
+      newAnime.title,
     ]);
 
     if (duplicateResults.length > 0) {
       return res.json({
         success: false,
-        message: 'Ya existe un héroe con ese nombre',
+        message: 'Ya existe un anime con ese nombre',
       });
     }
 
     const sql =
-      'INSERT INTO heroes (name, super_power, serie, `year`, image) VALUES (?, ?, ?, ?, ?)';
+      'INSERT INTO animes (title, genre, release_year, image) VALUES (?, ?, ?, ?)';
     const [results] = await conn.query(sql, [
-      newHero.name,
-      newHero.super_power,
-      newHero.serie,
-      newHero.year,
-      newHero.image,
+      newAnime.title,
+      newAnime.genre,
+      newAnime.release_year,
+      newAnime.image,
     ]);
 
-    const newHeroId = results.insertId;
+    const newAnimeId = results.insertId;
 
     res.json({
       success: true,
-      id: newHeroId,
+      id: newAnimeId,
     });
 
     conn.end();
@@ -199,55 +191,53 @@ server.post('/heroes', async (req, res) => {
   }
 });
 
-//modify an existing hero: PUT
-server.put('/heroes/:id', async (req, res) => {
+//modify an existing anime: PUT
+server.put('/animes/:id', async (req, res) => {
   try {
     const id = req.params.id;
-    const { name, super_power, serie, year, image } = req.body;
+    const { title, genre, release_year, image } = req.body;
 
     //validate required fields before modify DB info
-    if (!name || !super_power || !serie || !year) {
+    if (!title || !release_year) {
       return res.json({
         success: false,
-        message:
-          'Los datos "name", "super_power", "serie" y "year" son obligatorios',
+        message: 'Los datos "title" y "release_year" son obligatorios',
       });
     }
 
     //validate data type of year
-    if (year !== '' && isNaN(year)) {
+    if (release_year !== '' && isNaN(release_year)) {
       return res.json({
         success: false,
-        message: 'El campo "year" debe ser un número',
+        message: 'El campo "release_year" debe ser un número',
       });
     }
 
-    //validate if the hero to be updated exists
-    const checkExistenceSql = 'SELECT * FROM heroes WHERE id = ?';
+    //validate if the anime to be updated exists
+    const checkExistenceSql = 'SELECT * FROM animes WHERE id = ?';
     const conn = await getConnection();
     const [existenceResults] = await conn.query(checkExistenceSql, [id]);
 
     if (existenceResults.length === 0) {
       return res.json({
         success: false,
-        message: 'No se encontró ningún héroe con ese ID',
+        message: 'No se encontró ningún anime con ese ID',
       });
     }
 
     const sql =
-      'UPDATE heroes SET name = ?, super_power = ?, serie = ?, `year`= ?, image= ? WHERE id= ?';
+      'UPDATE animes SET title = ?, genre = ?, release_year = ?, image= ? WHERE id= ?';
     const [results] = await conn.query(sql, [
-      name,
-      super_power,
-      serie,
-      year,
+      title,
+      genre,
+      release_year,
       image,
       id,
     ]);
 
     res.json({
       success: true,
-      message: `Se ha modificado al héroe con el ID ${id}`,
+      message: `Se ha modificado el anime con el ID ${id}`,
     });
 
     conn.end();
@@ -260,28 +250,28 @@ server.put('/heroes/:id', async (req, res) => {
 });
 
 //eliminate an existing hero: DELETE
-server.delete('/heroes/:id', async (req, res) => {
+server.delete('/animes/:id', async (req, res) => {
   try {
     const id = req.params.id;
 
     //validate if the hero to be updated exists
-    const checkExistenceSql = 'SELECT * FROM heroes WHERE id = ?';
+    const checkExistenceSql = 'SELECT * FROM animes WHERE id = ?';
     const conn = await getConnection();
     const [existenceResults] = await conn.query(checkExistenceSql, [id]);
 
     if (existenceResults.length === 0) {
       return res.json({
         success: false,
-        message: 'No se encontró ningún héroe con ese ID',
+        message: 'No se encontró ningún anime con ese ID',
       });
     }
 
-    const sql = 'DELETE FROM heroes WHERE id = ?';
+    const sql = 'DELETE FROM animes WHERE id = ?';
     const [results] = await conn.query(sql, id);
 
     res.json({
       success: true,
-      message: `Se ha eliminado al héroe con el ID ${id}`,
+      message: `Se ha eliminado el anime con el ID ${id}`,
     });
 
     conn.end();
@@ -294,7 +284,6 @@ server.delete('/heroes/:id', async (req, res) => {
 });
 
 //BONUS: register/login
-
 //conexion with DB users_db
 async function getConnectionTwo() {
   const connection = await mysql.createConnection({
